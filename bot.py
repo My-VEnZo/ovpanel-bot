@@ -1,13 +1,25 @@
 import os
 import subprocess
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# ================= ENV =================
-TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
+# ================= LOAD ENV =================
+load_dotenv()
 
-# ================= CHECK ADMIN =================
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = os.getenv("ADMIN_ID")
+
+# ================= SAFE CHECK =================
+if not BOT_TOKEN:
+    raise Exception("BOT_TOKEN is not set in .env")
+
+if not ADMIN_ID:
+    raise Exception("ADMIN_ID is not set in .env")
+
+ADMIN_ID = int(ADMIN_ID)
+
+# ================= SECURITY =================
 def is_admin(update: Update):
     return update.effective_user.id == ADMIN_ID
 
@@ -21,7 +33,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        "🚀 VPN Bot Ready\n\nCommands:\n/add name\n/delete name\n/list"
+        "🚀 OVPanel Bot Ready\n\n/add name\n/delete name\n/list"
     )
 
 # ================= ADD USER =================
@@ -37,10 +49,8 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"⏳ Creating {username} ...")
 
-    # ساخت یوزر
     run(f"printf '1\n{username}\n' | bash /root/openvpn-install.sh")
 
-    # پیدا کردن فایل ovpn
     file = run(f"ls /root | grep {username} | head -n 1").strip()
 
     if file:
@@ -49,8 +59,6 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"✅ Created: {username}")
         except:
             await update.message.reply_text("❌ File not found")
-    else:
-        await update.message.reply_text("❌ Failed to create user")
 
 # ================= DELETE USER =================
 async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,8 +85,8 @@ async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     res = run("ls /root/*.ovpn 2>/dev/null")
     await update.message.reply_text(res or "Empty")
 
-# ================= APP =================
-app = Application.builder().token(TOKEN).build()
+# ================= RUN APP =================
+app = Application.builder().token(BOT_TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("add", add))
