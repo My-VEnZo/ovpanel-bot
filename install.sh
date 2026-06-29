@@ -11,13 +11,13 @@ echo ""
 read -p "🤖 Bot Token: " BOT_TOKEN
 read -p "🆔 Admin Telegram ID: " ADMIN_ID
 
-# ساخت env دائمی
+# ساخت فایل env
 cat > .env <<EOF
 BOT_TOKEN=$BOT_TOKEN
 ADMIN_ID=$ADMIN_ID
 EOF
 
-echo "✅ ENV file created (.env)"
+echo "✅ .env created"
 
 echo "▶ Starting bot..."
 python3 bot.py
