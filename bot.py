@@ -1,76 +1,88 @@
 import os
 import subprocess
-from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-# ================= LOAD ENV =================
-load_dotenv()
-
+# ================= ENV =================
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# ================= SECURITY =================
+# ================= CHECK ADMIN =================
 def is_admin(update: Update):
     return update.effective_user.id == ADMIN_ID
 
-# ================= RUN COMMAND =================
+# ================= RUN CMD =================
 def run(cmd):
     return subprocess.getoutput(cmd)
-
-# ================= MENU =================
-def menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ ساخت یوزر", callback_data="add")],
-        [InlineKeyboardButton("❌ حذف یوزر", callback_data="del")],
-        [InlineKeyboardButton("📄 لیست", callback_data="list")]
-    ])
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update):
         return
-    await update.message.reply_text("🚀 OVPanel Bot Ready", reply_markup=menu())
 
-# ================= CALLBACK =================
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer("⏳ در حال انجام...")
+    await update.message.reply_text(
+        "🚀 VPN Bot Ready\n\nCommands:\n/add name\n/delete name\n/list"
+    )
 
-    if query.from_user.id != ADMIN_ID:
+# ================= ADD USER =================
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update):
         return
 
-    data = query.data
+    if len(context.args) == 0:
+        await update.message.reply_text("Usage: /add username")
+        return
 
-    # ➕ CREATE USER
-    if data == "add":
-        username = "user" + str(os.getpid())
+    username = context.args[0]
 
-        run(f"printf '1\n{username}\n' | bash /root/openvpn-install.sh")
+    await update.message.reply_text(f"⏳ Creating {username} ...")
 
-        file = run(f"ls /root | grep {username} | head -n 1").strip()
+    # ساخت یوزر
+    run(f"printf '1\n{username}\n' | bash /root/openvpn-install.sh")
 
-        if file:
-            try:
-                await query.message.reply_document(open(f"/root/{file}", "rb"))
-                await query.message.reply_text(f"✅ Created: {username}")
-            except:
-                await query.message.reply_text("❌ فایل پیدا نشد")
+    # پیدا کردن فایل ovpn
+    file = run(f"ls /root | grep {username} | head -n 1").strip()
 
-    # ❌ DELETE USER
-    elif data == "del":
-        run("printf '2\n' | bash /root/openvpn-install.sh")
-        await query.message.reply_text("❌ Deleted")
+    if file:
+        try:
+            await update.message.reply_document(open(f"/root/{file}", "rb"))
+            await update.message.reply_text(f"✅ Created: {username}")
+        except:
+            await update.message.reply_text("❌ File not found")
+    else:
+        await update.message.reply_text("❌ Failed to create user")
 
-    # 📄 LIST USERS
-    elif data == "list":
-        res = run("ls /root/*.ovpn 2>/dev/null")
-        await query.message.reply_text(res or "Empty")
+# ================= DELETE USER =================
+async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update):
+        return
+
+    if len(context.args) == 0:
+        await update.message.reply_text("Usage: /delete username")
+        return
+
+    username = context.args[0]
+
+    await update.message.reply_text(f"⏳ Deleting {username} ...")
+
+    run("printf '2\n' | bash /root/openvpn-install.sh")
+
+    await update.message.reply_text(f"❌ Deleted: {username}")
+
+# ================= LIST USERS =================
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update):
+        return
+
+    res = run("ls /root/*.ovpn 2>/dev/null")
+    await update.message.reply_text(res or "Empty")
 
 # ================= APP =================
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(buttons))
+app.add_handler(CommandHandler("add", add))
+app.add_handler(CommandHandler("delete", delete))
+app.add_handler(CommandHandler("list", list_users))
 
 app.run_polling()
