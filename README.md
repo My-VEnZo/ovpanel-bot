@@ -1,3 +1,3 @@
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/My-VEnZo/REPO/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/My-VEnZo/ovpanel/main/install.sh)
 ```
